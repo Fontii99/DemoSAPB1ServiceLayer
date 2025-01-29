@@ -38,10 +38,13 @@
             BAction = new Button();
             LResponse = new RichTextBox();
             CBCardType = new ComboBox();
-            dataGridView1 = new DataGridView();
+            DGItem = new DataGridView();
             ITEMCODE = new DataGridViewTextBoxColumn();
             ITEMNAME = new DataGridViewTextBoxColumn();
-            ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
+            PRICE = new DataGridViewTextBoxColumn();
+            QUANTITY = new DataGridViewTextBoxColumn();
+            DISCOUNT = new DataGridViewTextBoxColumn();
+            ((System.ComponentModel.ISupportInitialize)DGItem).BeginInit();
             SuspendLayout();
             // 
             // BSearch
@@ -132,36 +135,57 @@
             CBCardType.Size = new Size(260, 33);
             CBCardType.TabIndex = 10;
             // 
-            // dataGridView1
+            // DGItem
             // 
-            dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Columns.AddRange(new DataGridViewColumn[] { ITEMCODE, ITEMNAME });
-            dataGridView1.Location = new Point(12, 235);
-            dataGridView1.Name = "dataGridView1";
-            dataGridView1.RowHeadersWidth = 62;
-            dataGridView1.Size = new Size(822, 300);
-            dataGridView1.TabIndex = 11;
+            DGItem.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            DGItem.Columns.AddRange(new DataGridViewColumn[] { ITEMCODE, ITEMNAME, PRICE, QUANTITY, DISCOUNT });
+            DGItem.Location = new Point(12, 235);
+            DGItem.Name = "DGItem";
+            DGItem.RowHeadersWidth = 62;
+            DGItem.Size = new Size(814, 300);
+            DGItem.TabIndex = 11;
             // 
             // ITEMCODE
             // 
-            ITEMCODE.HeaderText = "ITEM CODE";
+            ITEMCODE.HeaderText = "Item Code";
             ITEMCODE.MinimumWidth = 8;
             ITEMCODE.Name = "ITEMCODE";
-            ITEMCODE.Width = 300;
+            ITEMCODE.Width = 150;
             // 
             // ITEMNAME
             // 
-            ITEMNAME.HeaderText = "ITEM NAME";
+            ITEMNAME.HeaderText = "Item Name";
             ITEMNAME.MinimumWidth = 8;
             ITEMNAME.Name = "ITEMNAME";
-            ITEMNAME.Width = 300;
+            ITEMNAME.Width = 150;
+            // 
+            // PRICE
+            // 
+            PRICE.HeaderText = "Price";
+            PRICE.MinimumWidth = 8;
+            PRICE.Name = "PRICE";
+            PRICE.Width = 150;
+            // 
+            // QUANTITY
+            // 
+            QUANTITY.HeaderText = "Quantity";
+            QUANTITY.MinimumWidth = 8;
+            QUANTITY.Name = "QUANTITY";
+            QUANTITY.Width = 150;
+            // 
+            // DISCOUNT
+            // 
+            DISCOUNT.HeaderText = "Discount";
+            DISCOUNT.MinimumWidth = 8;
+            DISCOUNT.Name = "DISCOUNT";
+            DISCOUNT.Width = 150;
             // 
             // MainView
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(964, 547);
-            Controls.Add(dataGridView1);
+            Controls.Add(DGItem);
             Controls.Add(CBCardType);
             Controls.Add(LResponse);
             Controls.Add(BAction);
@@ -174,7 +198,7 @@
             Controls.Add(BSearch);
             Name = "MainView";
             Text = "DemoB1SLayer";
-            ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)DGItem).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -191,8 +215,11 @@
         private Button BAction;
         private RichTextBox LResponse;
         private ComboBox CBCardType;
-        private DataGridView dataGridView1;
+        private DataGridView DGItem;
         private DataGridViewTextBoxColumn ITEMCODE;
         private DataGridViewTextBoxColumn ITEMNAME;
+        private DataGridViewTextBoxColumn PRICE;
+        private DataGridViewTextBoxColumn QUANTITY;
+        private DataGridViewTextBoxColumn DISCOUNT;
     }
 }

@@ -10,21 +10,23 @@ namespace DemoSAPB1ServiceLayer.Entities
         [PrimaryKey]
         public string ItemCode { get; set; }
         public string ItemName { get; set; }
+        public int ItemStock { get; set; }
 
         public Item()
         {
             Table = "Items";
         }
-        public Item(string itemCode, string itemName)
+        public Item(string itemCode, string itemName, int itemStock)
         {
             ItemCode = itemCode;
             ItemName = itemName;
+            ItemStock = itemStock;
             Table = "Items";
         }
 
         public override string ToString()
         {
-            return $"ItemCode: {ItemCode}, ItemName: {ItemName}";
+            return $"ItemCode: {ItemCode}, ItemName: {ItemName}\n";
         }
     }
 }

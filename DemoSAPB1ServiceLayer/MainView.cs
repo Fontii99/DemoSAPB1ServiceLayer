@@ -3,6 +3,7 @@ using B1SLayer;
 using DemoSAPB1ServiceLayer.Entities;
 using System.Reflection;
 using DemoSAPB1ServiceLayer.Attributes;
+using System.Data;
 
 namespace DemoSAPB1ServiceLayer
 
@@ -44,17 +45,36 @@ namespace DemoSAPB1ServiceLayer
 
         private async void BAction_Click(object sender, EventArgs e)
         {
+            LResponse.Text = "";
+
+
             Client client = new Client
             {
                 CardCode = TBCardCode.Text,
                 CardName = TBCardName.Text,
                 CardType = CBCardType.Text
             };
-            //Item item = new Item
-            //{
-            //    ItemCode = 
-            //};
-            LResponse.Text = "";
+
+            LResponse.Text += client.ToString();
+
+            foreach (DataGridViewRow row in DGItem.Rows)
+            {
+                if (row.IsNewRow || (string.IsNullOrEmpty(row.Cells[0].Value?.ToString()) && string.IsNullOrEmpty(row.Cells[1].Value?.ToString())))
+                {
+                    continue;
+                }
+
+                Item item = new Item
+                {
+                    ItemCode = row.Cells[0].Value?.ToString(),
+                    ItemName = row.Cells[1].Value?.ToString(),
+                    ItemStock = row.Cells[3].Value != null ? Convert.ToInt32(row.Cells[3].Value) : 0
+                };
+
+                LResponse.Text += item.ToString();
+
+                await post(item);
+            }
 
             if (SearchMode)
             {
@@ -76,11 +96,11 @@ namespace DemoSAPB1ServiceLayer
 
                 var tableProperty = properties.FirstOrDefault(p => p.GetCustomAttribute<TableNameAttribute>() != null);
                 var keyProperty = properties.FirstOrDefault(p => p.GetCustomAttribute<PrimaryKeyAttribute>() != null);
-
+              
                 string table = tableProperty.GetValue(itemToGet)?.ToString();
                 string primaryKey = keyProperty.GetValue(itemToGet)?.ToString();
 
-                var slResponse = await serviceLayer
+                T slResponse = await serviceLayer
                     .Request(table, primaryKey)
                     .GetAsync<T>();
 
@@ -103,7 +123,7 @@ namespace DemoSAPB1ServiceLayer
 
                 string table = tableProperty.GetValue(itemToPost)?.ToString();
 
-                var client = await serviceLayer
+                T client = await serviceLayer
                     .Request(table)
                     .PostAsync<T>(itemToPost);
 
