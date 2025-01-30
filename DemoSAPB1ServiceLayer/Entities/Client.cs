@@ -1,5 +1,4 @@
-﻿using System.Windows.Forms;
-using DemoSAPB1ServiceLayer.Attributes;
+﻿using DemoSAPB1ServiceLayer.Attributes;
 
 namespace DemoSAPB1ServiceLayer.Entities
 {
@@ -22,7 +21,7 @@ namespace DemoSAPB1ServiceLayer.Entities
         }
         public Client()
         {
-            Table = "BusinessPartners";
+
         }
         public override string ToString()
         {

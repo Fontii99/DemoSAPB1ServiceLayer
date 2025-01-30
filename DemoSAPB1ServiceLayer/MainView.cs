@@ -1,9 +1,9 @@
 using Newtonsoft.Json;
 using B1SLayer;
 using DemoSAPB1ServiceLayer.Entities;
-using System.Reflection;
-using DemoSAPB1ServiceLayer.Attributes;
 using System.Data;
+using Newtonsoft.Json.Linq;
+using System.Net;
 
 namespace DemoSAPB1ServiceLayer
 
@@ -13,6 +13,9 @@ namespace DemoSAPB1ServiceLayer
         public bool SearchMode = false;
         private readonly SLConnection serviceLayer;
         public string response = "";
+        private List<Item> items = new();
+        List<SLBatchRequest> batchRequests = new List<SLBatchRequest>();
+        int batchCounter = 1;
         public MainView(SLConnection Sl)
         {
             serviceLayer = Sl;
@@ -21,6 +24,7 @@ namespace DemoSAPB1ServiceLayer
 
         private void BSearch_Click(object sender, EventArgs e)
         {
+            BAction.Text = "Search";
             TBCardCode.Text = "";
             TBCardName.Text = "";
             CBCardType.Text = "";
@@ -33,6 +37,7 @@ namespace DemoSAPB1ServiceLayer
 
         private void BAdd_Click(object sender, EventArgs e)
         {
+            BAction.Text = "Add";
             TBCardCode.Text = "";
             TBCardName.Text = "";
             CBCardType.Text = "";
@@ -47,15 +52,16 @@ namespace DemoSAPB1ServiceLayer
         {
             LResponse.Text = "";
 
-
-            Client client = new Client
-            {
-                CardCode = TBCardCode.Text,
-                CardName = TBCardName.Text,
-                CardType = CBCardType.Text
-            };
-
-            LResponse.Text += client.ToString();
+            var batchClient = new SLBatchRequest(HttpMethod.Post, "BusinessPartners",
+                new
+                {
+                    CardCode = TBCardCode.Text,
+                    CardName = TBCardName.Text,
+                    CardType = CBCardType.Text
+                });
+            batchClient.ContentID = batchCounter;
+            batchRequests.Add(batchClient);
+            batchCounter++;
 
             foreach (DataGridViewRow row in DGItem.Rows)
             {
@@ -63,76 +69,90 @@ namespace DemoSAPB1ServiceLayer
                 {
                     continue;
                 }
+                var batchItem = new SLBatchRequest(HttpMethod.Post, "Items", new
+                {
+                    ItemCode = row.Cells[0].Value?.ToString(),
+                    ItemName = row.Cells[1].Value?.ToString(),
+                    DefaultWarehouse = "01"
+                });
+                batchItem.ContentID = batchCounter;
+                batchRequests.Add(batchItem);
+                batchCounter++;
 
+                decimal quantity;
+                decimal price;
+                int discount;
                 Item item = new Item
                 {
                     ItemCode = row.Cells[0].Value?.ToString(),
                     ItemName = row.Cells[1].Value?.ToString(),
-                    ItemStock = row.Cells[3].Value != null ? Convert.ToInt32(row.Cells[3].Value) : 0
+                    DefaultWarehouse = "01",
+                    Table = "Items"
                 };
+                if (decimal.TryParse(row.Cells[3].Value?.ToString(), out quantity))
+                {
+                    item.QuantityOnStock = quantity;
+                }
+                if (decimal.TryParse(row.Cells[2].Value?.ToString(), out price))
+                {
+                    item.Price = price;
+                }
+                if (int.TryParse(row.Cells[4].Value?.ToString(), out discount))
+                {
+                    item.Discount = discount;
+                }
+                items.Add(item);
 
-                LResponse.Text += item.ToString();
-
-                await post(item);
             }
 
-            if (SearchMode)
+            var batchInvoice = new SLBatchRequest(HttpMethod.Post,
+                                            "Invoices", new
             {
-                await get(client);
-                LResponse.Text += $"\nCustomer found: {response}";
-            }
-            else
+                Data = new
+                {
+                    CardCode = TBCardCode.Text,
+                    DocType = "dDocument_Items",
+                    DocDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                    DocumentLines = items.Select(item => new
+                    {
+                        ItemCode = item.ItemCode,
+                        Quantity = item.QuantityOnStock,
+                        UnitPrice = item.Price,
+                        DiscountPercent = item.Discount
+                    }).ToArray()
+                }
+            });
+            batchInvoice.ContentID = batchCounter;
+            batchRequests.Add(batchInvoice);
+            HttpResponseMessage[] batchResult = await serviceLayer.PostBatchAsync(batchRequests.ToArray());
+
+            for (int i = 0; i < batchResult.Length; i++)
             {
-                await post(client);
-
-                LResponse.Text += $"\nCustomer created: {response}";
-            }
-        }
-        private async Task get<T>(T itemToGet) where T : class
-        {
-            try
-            {
-                var properties = typeof(T).GetProperties();
-
-                var tableProperty = properties.FirstOrDefault(p => p.GetCustomAttribute<TableNameAttribute>() != null);
-                var keyProperty = properties.FirstOrDefault(p => p.GetCustomAttribute<PrimaryKeyAttribute>() != null);
-              
-                string table = tableProperty.GetValue(itemToGet)?.ToString();
-                string primaryKey = keyProperty.GetValue(itemToGet)?.ToString();
-
-                T slResponse = await serviceLayer
-                    .Request(table, primaryKey)
-                    .GetAsync<T>();
-
-                response = JsonConvert.SerializeObject(slResponse);
-            }
-            catch (Exception ex)
-            {
-                response = ex.ToString();
+                if (!batchResult[i].IsSuccessStatusCode)
+                {
+                    if (batchResult[i].Content != null && batchResult[i].Content.Headers.ContentType.MediaType == "application/json")
+                    {
+                        string jsonString = await batchResult[i].Content.ReadAsStringAsync();
+                        SLResponseError error = JsonConvert.DeserializeObject<SLResponseError>(jsonString);
+                        throw new Exception(error.Error.Message.Value);
+                    }
+                    else
+                    {
+                        throw new Exception("Error desconocido");
+                    }
+                }
+                else
+                {
+                    if (batchResult[i].Content != null &&
+                        batchResult[i].StatusCode == HttpStatusCode.Created &&
+                        batchResult[i].Content.Headers.ContentType.MediaType == "application/json")
+                    {
+                        string jsonString = await batchResult[i].Content.ReadAsStringAsync();
+                        var json = JObject.Parse(jsonString);
+                    }
+                }
             }
 
-        }
-        private async Task post<T>(T itemToPost)
-        {
-            try
-            {
-
-                var properties = typeof(T).GetProperties();
-
-                var tableProperty = properties.FirstOrDefault(p => p.GetCustomAttribute<TableNameAttribute>() != null);
-
-                string table = tableProperty.GetValue(itemToPost)?.ToString();
-
-                T client = await serviceLayer
-                    .Request(table)
-                    .PostAsync<T>(itemToPost);
-
-                response = JsonConvert.SerializeObject(client);
-            }
-            catch (Exception ex)
-            {
-                response = ex.ToString();
-            }
         }
     }
 }

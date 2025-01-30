@@ -114,7 +114,7 @@
             BAction.Name = "BAction";
             BAction.Size = new Size(112, 34);
             BAction.TabIndex = 8;
-            BAction.Text = "Search";
+            BAction.Text = "Add";
             BAction.UseVisualStyleBackColor = true;
             BAction.Click += BAction_Click;
             // 

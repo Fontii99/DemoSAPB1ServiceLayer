@@ -10,18 +10,25 @@ namespace DemoSAPB1ServiceLayer.Entities
         [PrimaryKey]
         public string ItemCode { get; set; }
         public string ItemName { get; set; }
-        public int ItemStock { get; set; }
+        public decimal QuantityOnStock { get; set; }
+        public string DefaultWarehouse { get; set; }
 
-        public Item()
-        {
-            Table = "Items";
-        }
-        public Item(string itemCode, string itemName, int itemStock)
+        public decimal Price { get; set; }
+        public int Discount { get; set; }
+
+        public Item(string itemCode, string itemName, decimal itemStock, string defaultWarehouse, decimal price, int discount)
         {
             ItemCode = itemCode;
             ItemName = itemName;
-            ItemStock = itemStock;
+            QuantityOnStock = itemStock;
+            DefaultWarehouse = defaultWarehouse;
             Table = "Items";
+            Price = price;
+            Discount = discount;
+        }
+        public Item()
+        {
+
         }
 
         public override string ToString()
