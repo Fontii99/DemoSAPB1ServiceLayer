@@ -4,6 +4,8 @@ using DemoSAPB1ServiceLayer.Entities;
 using System.Data;
 using Newtonsoft.Json.Linq;
 using System.Net;
+using DemoSAPB1ServiceLayer.Attributes;
+using System.Reflection;
 
 namespace DemoSAPB1ServiceLayer
 
@@ -50,110 +52,171 @@ namespace DemoSAPB1ServiceLayer
 
         private async void BAction_Click(object sender, EventArgs e)
         {
-            batchRequests.Clear();
-            items.Clear();
-            LResponse.Text = "";
+            try
+            {
+                batchRequests.Clear();
+                items.Clear();
+                LResponse.Text = "";
+                batchCounter = 1;
 
-            var batchClient = new SLBatchRequest(HttpMethod.Post, "BusinessPartners",
-                new
+                // Check if client exists
+                var client = new Client
                 {
                     CardCode = TBCardCode.Text,
                     CardName = TBCardName.Text,
-                    CardType = CBCardType.Text
-                });
-            batchClient.ContentID = batchCounter;
-            batchRequests.Add(batchClient);
-            batchCounter++;
-
-            foreach (DataGridViewRow row in DGItem.Rows)
-            {
-                if (row.IsNewRow || (string.IsNullOrEmpty(row.Cells[0].Value?.ToString()) && string.IsNullOrEmpty(row.Cells[1].Value?.ToString())))
-                {
-                    continue;
-                }
-                var batchItem = new SLBatchRequest(HttpMethod.Post, "Items", new
-                {
-                    ItemCode = row.Cells[0].Value?.ToString(),
-                    ItemName = row.Cells[1].Value?.ToString(),
-                    DefaultWarehouse = "01"
-                });
-                batchItem.ContentID = batchCounter;
-                batchRequests.Add(batchItem);
-                batchCounter++;
-
-                decimal quantity;
-                decimal price;
-                int discount;
-                Item item = new Item
-                {
-                    ItemCode = row.Cells[0].Value?.ToString(),
-                    ItemName = row.Cells[1].Value?.ToString(),
-                    DefaultWarehouse = "01",
-                    Table = "Items"
+                    CardType = CBCardType.Text,
+                    Table = "BusinessPartners"
                 };
-                if (decimal.TryParse(row.Cells[3].Value?.ToString(), out quantity))
-                {
-                    item.QuantityOnStock = quantity;
-                }
-                if (decimal.TryParse(row.Cells[2].Value?.ToString(), out price))
-                {
-                    item.Price = price;
-                }
-                if (int.TryParse(row.Cells[4].Value?.ToString(), out discount))
-                {
-                    item.Discount = discount;
-                }
-                items.Add(item);
 
-            }
-
-            SLBatchRequest batchInvoice = new SLBatchRequest(HttpMethod.Post,
-                                            "Invoices", new
-            {
-                Data = new
+                bool clientExists = true;
+                try
                 {
-                    CardCode = TBCardCode.Text.ToString(),
-                    DocType = "dDocument_Items",
-                    DocDate = DateTime.Now.ToString("yyyy-MM-dd"),
-                    DocumentLines = items.Select(item => new
+                    await get(client);
+                    if (response.Contains("Exception"))
+                        clientExists = false;
+                }
+                catch
+                {
+                    clientExists = false;
+                }
+
+                // Add client to batch if it doesn't exist
+                if (!clientExists)
+                {
+                    var batchClient = new SLBatchRequest(HttpMethod.Post, "BusinessPartners",
+                        new
+                        {
+                            CardCode = TBCardCode.Text,
+                            CardName = TBCardName.Text,
+                            CardType = CBCardType.Text
+                        });
+                    batchClient.ContentID = batchCounter++;
+                    batchRequests.Add(batchClient);
+                }
+
+                // Process items and check if they exist
+                var orderLines = new List<dynamic>();
+
+                foreach (DataGridViewRow row in DGItem.Rows)
+                {
+                    if (row.IsNewRow || (string.IsNullOrEmpty(row.Cells[0].Value?.ToString()) &&
+                        string.IsNullOrEmpty(row.Cells[1].Value?.ToString())))
                     {
-                        ItemCode = item.ItemCode.ToString(),
-                        Quantity = item.QuantityOnStock,
-                        UnitPrice = item.Price,
-                        DiscountPercent = item.Discount
-                    }).ToArray()
-                }
-            });
-            batchInvoice.ContentID = batchCounter;
-
-            batchRequests.Add(batchInvoice);
-            HttpResponseMessage[] batchResult = await serviceLayer.PostBatchAsync(batchRequests.ToArray());
-
-            for (int i = 0; i < batchResult.Length; i++)
-            {
-                if (!batchResult[i].IsSuccessStatusCode)
-                {
-                    if (batchResult[i].Content != null && batchResult[i].Content.Headers.ContentType.MediaType == "application/json")
-                    {
-                        string jsonString = await batchResult[i].Content.ReadAsStringAsync();
-                        SLResponseError error = JsonConvert.DeserializeObject<SLResponseError>(jsonString);
-                        throw new Exception(error.Error.Message.Value);
+                        continue;
                     }
-                    else
+
+                    var item = new Item
                     {
-                        throw new Exception("Error desconocido");
+                        ItemCode = row.Cells[0].Value?.ToString(),
+                        ItemName = row.Cells[1].Value?.ToString(),
+                        DefaultWarehouse = "01",
+                        Table = "Items"
+                    };
+
+                    bool itemExists = true;
+                    try
+                    {
+                        await get(item);
+                        if (response.Contains("Exception"))
+                            itemExists = false;
+                    }
+                    catch
+                    {
+                        itemExists = false;
+                    }
+
+                    // Add item to batch if it doesn't exist
+                    if (!itemExists)
+                    {
+                        var batchItem = new SLBatchRequest(HttpMethod.Post, "Items", new
+                        {
+                            ItemCode = item.ItemCode,
+                            ItemName = item.ItemName,
+                            DefaultWarehouse = item.DefaultWarehouse
+                        });
+                        batchItem.ContentID = batchCounter++;
+                        batchRequests.Add(batchItem);
+                    }
+
+                    // Add to order lines regardless of whether item exists or not
+                    decimal quantity = 0;
+                    decimal price = 0;
+                    int discount = 0;
+
+                    decimal.TryParse(row.Cells[3].Value?.ToString(), out quantity);
+                    decimal.TryParse(row.Cells[2].Value?.ToString(), out price);
+                    int.TryParse(row.Cells[4].Value?.ToString(), out discount);
+
+                    item.QuantityOnStock = quantity;
+                    item.Price = price;
+                    item.Discount = discount;
+                    items.Add(item);
+
+                    orderLines.Add(new
+                    {
+                        ItemCode = item.ItemCode,
+                        Quantity = quantity,
+                        UnitPrice = price,
+                        DiscountPercent = discount
+                    });
+                }
+
+                // Only create order if we have items and either the client exists or will be created
+                if (orderLines.Any() && (clientExists || batchRequests.Any(r => r.Resource == "BusinessPartners")))
+                {
+                    var batchOrder = new SLBatchRequest(HttpMethod.Post, "Orders", new
+                    {
+                        CardCode = TBCardCode.Text,
+                        DocType = "dDocument_Items",
+                        DocDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                        DocDueDate = DateTime.Now.AddDays(30),
+                        DocumentLines = orderLines.ToArray()
+                    });
+                    batchOrder.ContentID = batchCounter;
+                    batchRequests.Add(batchOrder);
+                }
+
+                // Only execute batch if there are requests
+                if (batchRequests.Count > 0)
+                {
+                    var batchResult = await serviceLayer.PostBatchAsync(batchRequests.ToArray());
+                    foreach (var line in batchResult)
+                    {
+                        var result = await line.Content.ReadAsStringAsync();
+                        LResponse.Text += result + Environment.NewLine;
                     }
                 }
                 else
                 {
-                    if (batchResult[i].Content != null &&
-                        batchResult[i].StatusCode == HttpStatusCode.Created &&
-                        batchResult[i].Content.Headers.ContentType.MediaType == "application/json")
-                    {
-                        string jsonString = await batchResult[i].Content.ReadAsStringAsync();
-                        var json = JObject.Parse(jsonString);
-                    }
+                    LResponse.Text = "No operations needed - all records exist";
                 }
+            }
+            catch (Exception ex)
+            {
+                LResponse.Text = $"Error: {ex.Message}";
+            }
+        }
+        private async Task get<T>(T itemToGet) where T : class
+        {
+            try
+            {
+                var properties = typeof(T).GetProperties();
+
+                var tableProperty = properties.FirstOrDefault(p => p.GetCustomAttribute<TableNameAttribute>() != null);
+                var keyProperty = properties.FirstOrDefault(p => p.GetCustomAttribute<PrimaryKeyAttribute>() != null);
+
+                string table = tableProperty.GetValue(itemToGet)?.ToString();
+                string primaryKey = keyProperty.GetValue(itemToGet)?.ToString();
+
+                T slResponse = await serviceLayer
+                    .Request(table, primaryKey)
+                    .GetAsync<T>();
+
+                response = JsonConvert.SerializeObject(slResponse);
+            }
+            catch (Exception ex)
+            {
+                response = ex.ToString();
             }
 
         }
