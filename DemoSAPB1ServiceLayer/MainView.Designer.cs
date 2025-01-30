@@ -129,7 +129,7 @@
             // CBCardType
             // 
             CBCardType.FormattingEnabled = true;
-            CBCardType.Items.AddRange(new object[] { "cCustomer", "cVendor", "cContact" });
+            CBCardType.Items.AddRange(new object[] { "cCustomer", "cSupplier", "cLid" });
             CBCardType.Location = new Point(227, 196);
             CBCardType.Name = "CBCardType";
             CBCardType.Size = new Size(260, 33);

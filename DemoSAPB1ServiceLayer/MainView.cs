@@ -50,6 +50,8 @@ namespace DemoSAPB1ServiceLayer
 
         private async void BAction_Click(object sender, EventArgs e)
         {
+            batchRequests.Clear();
+            items.Clear();
             LResponse.Text = "";
 
             var batchClient = new SLBatchRequest(HttpMethod.Post, "BusinessPartners",
@@ -105,17 +107,17 @@ namespace DemoSAPB1ServiceLayer
 
             }
 
-            var batchInvoice = new SLBatchRequest(HttpMethod.Post,
+            SLBatchRequest batchInvoice = new SLBatchRequest(HttpMethod.Post,
                                             "Invoices", new
             {
                 Data = new
                 {
-                    CardCode = TBCardCode.Text,
+                    CardCode = TBCardCode.Text.ToString(),
                     DocType = "dDocument_Items",
                     DocDate = DateTime.Now.ToString("yyyy-MM-dd"),
                     DocumentLines = items.Select(item => new
                     {
-                        ItemCode = item.ItemCode,
+                        ItemCode = item.ItemCode.ToString(),
                         Quantity = item.QuantityOnStock,
                         UnitPrice = item.Price,
                         DiscountPercent = item.Discount
@@ -123,6 +125,7 @@ namespace DemoSAPB1ServiceLayer
                 }
             });
             batchInvoice.ContentID = batchCounter;
+
             batchRequests.Add(batchInvoice);
             HttpResponseMessage[] batchResult = await serviceLayer.PostBatchAsync(batchRequests.ToArray());
 
